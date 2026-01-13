@@ -2,85 +2,133 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Kiosko POS - Inventario</title>
+    <title>Kiosko POS - Gestión de Stock</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { 
-            --bg-color: #121212; 
-            --card-bg: #1e1e1e; 
-            --text-color: #ffffff; 
-            --accent-color: #3498db; 
-        }
-        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
+        :root { --bg: #121212; --card: #1e1e1e; --text: #fff; --accent: #3498db; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         
-        /* MENU LATERAL */
-        .sidenav { height: 100%; width: 0; position: fixed; z-index: 1001; top: 0; left: 0; background-color: #111; overflow-x: hidden; transition: 0.3s; padding-top: 60px; box-shadow: 5px 0px 15px rgba(0,0,0,0.5); }
-        .sidenav a { padding: 15px 25px; text-decoration: none; font-size: 1.1rem; color: #818181; display: block; border-bottom: 1px solid #222; }
-        .sidenav a:hover { color: var(--accent-color); background: #222; }
-        .sidenav .closebtn { position: absolute; top: 10px; right: 25px; font-size: 36px; cursor: pointer; }
-        .open-btn { font-size: 24px; cursor: pointer; color: white; position: fixed; top: 20px; left: 20px; z-index: 1000; background: none; border: none; }
+        .sidenav { height: 100%; width: 0; position: fixed; z-index: 1001; top: 0; left: 0; background: #111; transition: 0.3s; padding-top: 60px; overflow-x: hidden; }
+        .sidenav a { padding: 15px 25px; text-decoration: none; color: #818181; display: block; border-bottom: 1px solid #222; cursor: pointer; }
+        .open-btn { font-size: 24px; cursor: pointer; position: fixed; top: 20px; left: 20px; background: none; border: none; color: white; z-index: 1000; }
 
-        .brand-title { margin-left: 60px; font-size: 1.8rem; font-weight: bold; margin-bottom: 30px; }
-        .form-container { background: var(--card-bg); padding: 25px; border-radius: 10px; max-width: 500px; margin: auto; border-bottom: 4px solid var(--accent-color); }
-        h3 { margin-top: 0; color: #888; }
-        input { width: 100%; padding: 12px; margin: 10px 0; background: #2d2d2d; border: 1px solid #444; color: white; border-radius: 5px; box-sizing: border-box; font-size: 1rem; }
-        input:focus { border-color: var(--accent-color); outline: none; }
-        button.save { width: 100%; padding: 15px; background: var(--accent-color); border: none; color: white; font-weight: bold; border-radius: 5px; cursor: pointer; font-size: 1rem; margin-top: 10px; }
-        button.save:hover { opacity: 0.9; }
+        .container { max-width: 900px; margin: 60px auto; }
+        .form-card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 30px; border-bottom: 4px solid var(--accent); }
+        
+        input { width: 100%; padding: 10px; margin: 8px 0; background: #2d2d2d; border: 1px solid #444; color: white; border-radius: 6px; }
+        button.btn-save { width: 100%; padding: 12px; background: var(--accent); border: none; color: white; font-weight: bold; border-radius: 6px; cursor: pointer; }
+
+        /* TABLA DE STOCK */
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #333; }
+        th { background: #252525; color: var(--accent); font-size: 0.8rem; letter-spacing: 1px; }
+        .alerta-stock { color: #ff4757; font-weight: bold; } /* Rojo si hay poco */
     </style>
 </head>
 <body>
     <div id="mySidenav" class="sidenav">
-        <div class="closebtn" onclick="closeNav()">&times;</div>
-        <div style="color: #444; padding: 0 25px 10px; font-size: 0.7rem; letter-spacing: 2px; font-weight: bold;">PANEL DE CONTROL</div>
+        <a href="javascript:void(0)" onclick="closeNav()" style="font-size:30px; position:absolute; top:10px; right:25px; color:white;">&times;</a>
         <a href="ventas.html">🛒 Ventas</a>
         <a href="index.html">📦 Inventario</a>
         <a href="libreta.html">📖 Libreta Fiados</a>
-        <a href="reportes.html">📊 Cierre de Caja</a>
+        <a href="reportes.html">📊 Reportes</a>
     </div>
-
     <button class="open-btn" onclick="openNav()">&#9776;</button>
 
-    <div class="brand-title"><span style="color: var(--accent-color);">K</span>iosko POS - Inventario</div>
-    <h2><span style="color:#3498db">K</span>iosko POS - Inventario</h2>
-    <div class="form-container">
-        <h3>Cargar / Editar Producto</h3>
-        <input type="text" id="codigo" placeholder="Código de Barras">
-        <input type="text" id="nombre" placeholder="Nombre del Producto">
-        <input type="number" id="precio" placeholder="Precio de Venta">
-        <input type="number" id="stock" placeholder="Stock Inicial">
-        <button class="save" onclick="guardarProducto()">GUARDAR PRODUCTO</button>
+    <div class="container">
+        <div class="form-card">
+            <h2 style="margin-top:0"><span style="color:var(--accent)">K</span>iosko - Carga de Productos</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <input type="text" id="codigo" placeholder="Código de Barras">
+                <input type="text" id="nombre" placeholder="Nombre del Producto">
+                <input type="number" id="precio" placeholder="Precio de Venta">
+                <input type="number" id="stock" placeholder="Cantidad que entra">
+            </div>
+            <button class="btn-save" onclick="guardar()">ACTUALIZAR / AGREGAR</button>
+        </div>
+
+        <h3>📦 Stock Actual</h3>
+        <table>
+            <thead>
+                <tr><th>CÓDIGO</th><th>PRODUCTO</th><th>PRECIO</th><th>STOCK</th><th>ACCIÓN</th></tr>
+            </thead>
+            <tbody id="tabla-stock">
+                </tbody>
+        </table>
     </div>
 
     <script>
-        // --- PEGA TUS DATOS AQUÍ ---
-        const SUPABASE_URL = 'https://ovctgqmhumlspklhbjhf.supabase.co'; 
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q';
-        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-
-        function openNav() { document.getElementById("mySidenav").style.width = "260px"; }
+        const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
+        // OREJA PARA CARGA DE STOCK
+client.channel('carga').on('broadcast', { event: 'escaneo' }, (p) => {
+    document.getElementById('codigo').value = p.payload.codigo;
+    // Opcional: que vibre o haga un sonido la PC si quieres
+    console.log("Código recibido para carga: " + p.payload.codigo);
+}).subscribe();
+        function openNav() { document.getElementById("mySidenav").style.width = "250px"; }
         function closeNav() { document.getElementById("mySidenav").style.width = "0"; }
 
-        async function guardarProducto() {
-            const prod = {
-                codigo_barra: document.getElementById('codigo').value,
-                nombre: document.getElementById('nombre').value,
-                precio_venta: parseFloat(document.getElementById('precio').value),
-                stock: parseInt(document.getElementById('stock').value)
-            };
+        // Cargar la lista apenas abre la página
+        async function cargarInventario() {
+            const { data, error } = await client.from('productos').select('*').order('nombre', { ascending: true });
+            if (error) return;
 
-            if(!prod.codigo_barra || !prod.nombre) return alert("Completa los campos básicos");
+            const tbody = document.getElementById('tabla-stock');
+            tbody.innerHTML = '';
 
-            const { error } = await client.from('productos').upsert([prod], { onConflict: 'codigo_barra' });
+            data.forEach(p => {
+                // Si el stock es menos de 5, lo ponemos en rojo
+                const claseStock = p.stock <= 5 ? 'alerta-stock' : '';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${p.codigo_barra}</td>
+                        <td>${p.nombre}</td>
+                        <td>$${p.precio_venta}</td>
+                        <td class="${claseStock}">${p.stock} unidades</td>
+                        <td><button onclick="eliminar('${p.id}')" style="background:none; border:none; color:#ff4757; cursor:pointer;">🗑️</button></td>
+                    </tr>`;
+            });
+        }
+
+        async function guardar() {
+            const cod = document.getElementById('codigo').value;
+            const nom = document.getElementById('nombre').value;
+            const pre = parseFloat(document.getElementById('precio').value);
+            const sto = parseInt(document.getElementById('stock').value);
+
+            if(!cod || !nom) return alert("Completa los datos");
+
+            // Primero vemos si ya existe para sumar el stock
+            const { data: existente } = await client.from('productos').select('*').eq('codigo_barra', cod).single();
             
-            if (!error) {
-                alert("✅ Producto guardado correctamente");
+            let nuevoStock = sto;
+            if(existente) {
+                nuevoStock = existente.stock + sto; // Sumamos lo nuevo a lo que ya había
+            }
+
+            const { error } = await client.from('productos').upsert([{
+                codigo_barra: cod,
+                nombre: nom,
+                precio_venta: pre,
+                stock: nuevoStock
+            }], { onConflict: 'codigo_barra' });
+
+            if(!error) {
+                alert("Inventario actualizado");
                 document.querySelectorAll('input').forEach(i => i.value = '');
-            } else {
-                alert("Error: " + error.message);
+                cargarInventario(); // Refrescar la lista
             }
         }
+
+        async function eliminar(id) {
+            if(confirm("¿Seguro quieres borrar este producto?")) {
+                await client.from('productos').delete().eq('id', id);
+                cargarInventario();
+            }
+        }
+
+        cargarInventario();
     </script>
 </body>
 </html>

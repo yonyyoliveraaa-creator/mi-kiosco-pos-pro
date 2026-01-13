@@ -2,65 +2,85 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Kiosko POS - Libreta</title>
+    <title>Kiosko POS - Libreta de Fiados</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --bg-color: #121212; --card-bg: #1e1e1e; --text-color: #ffffff; --accent-color: #f1c40f; }
-        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
+        :root { --bg: #121212; --card: #1e1e1e; --text: #fff; --accent: #f1c40f; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         
-        .sidenav { height: 100%; width: 0; position: fixed; z-index: 1001; top: 0; left: 0; background-color: #111; overflow-x: hidden; transition: 0.3s; padding-top: 60px; }
-        .sidenav a { padding: 15px 25px; text-decoration: none; font-size: 1.1rem; color: #818181; display: block; border-bottom: 1px solid #222; }
-        .sidenav .closebtn { position: absolute; top: 10px; right: 25px; font-size: 36px; cursor: pointer; }
-        .open-btn { font-size: 24px; cursor: pointer; color: white; position: fixed; top: 20px; left: 20px; z-index: 1000; background: none; border: none; }
+        .sidenav { height: 100%; width: 0; position: fixed; z-index: 1001; top: 0; left: 0; background: #111; transition: 0.3s; padding-top: 60px; overflow-x: hidden; }
+        .sidenav a { padding: 15px 25px; text-decoration: none; color: #818181; display: block; border-bottom: 1px solid #222; cursor: pointer; }
+        .sidenav a:hover { color: var(--accent); }
+        .open-btn { font-size: 24px; cursor: pointer; position: fixed; top: 20px; left: 20px; background: none; border: none; color: white; z-index: 1000; }
 
-        .brand-title { margin-left: 60px; font-size: 1.8rem; font-weight: bold; margin-bottom: 30px; }
-        .card-deuda { background: var(--card-bg); padding: 20px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid var(--accent-color); }
-        .btn-cobrar { background: var(--accent-color); color: black; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .brand-header { margin-left: 60px; font-size: 1.8rem; font-weight: bold; margin-bottom: 30px; }
+        .card-deuda { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid var(--accent); }
+        .btn-cobrar { background: var(--accent); color: black; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
     <div id="mySidenav" class="sidenav">
-        <div class="closebtn" onclick="closeNav()">&times;</div>
+        <a href="javascript:void(0)" onclick="closeNav()" style="font-size:30px; position:absolute; top:10px; right:25px; color:white;">&times;</a>
         <a href="ventas.html">🛒 Ventas</a>
+        <a onclick="cambiarUsuario()">👤 Cambiar Turno</a>
         <a href="index.html">📦 Inventario</a>
         <a href="libreta.html">📖 Libreta Fiados</a>
-        <a href="reportes.html">📊 Cierre de Caja</a>
+        <a href="reportes.html">📊 Reportes</a>
     </div>
-
     <button class="open-btn" onclick="openNav()">&#9776;</button>
 
-    <div class="brand-title"><span style="color: var(--accent-color);">K</span>iosko POS - Libreta</div>
+    <div class="brand-header"><span style="color:var(--accent)">K</span>iosko POS - Libreta</div>
 
     <div id="lista-fiados"></div>
 
     <script>
-        const SUPABASE_URL = 'https://ovctgqmhumlspklhbjhf.supabase.co'; 
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q';
-        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // --- TUS DATOS DE SUPABASE ---
+        const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
 
-        function openNav() { document.getElementById("mySidenav").style.width = "260px"; }
+        function openNav() { document.getElementById("mySidenav").style.width = "250px"; }
         function closeNav() { document.getElementById("mySidenav").style.width = "0"; }
 
-        async function cargarLibreta() {
-            let { data: deudas } = await client.from('ventas').select('*').eq('metodo_pago', 'Fiado');
-            const resumen = {};
-            deudas.forEach(v => {
-                if (!resumen[v.cliente]) resumen[v.cliente] = { total: 0 };
-                resumen[v.cliente].total += v.total;
-            });
-            const lista = document.getElementById('lista-fiados');
-            lista.innerHTML = '';
-            for (const c in resumen) {
-                lista.innerHTML += `<div class="card-deuda">
-                    <div><h2>${c}</h2></div>
-                    <div style="text-align:right">
-                        <div style="font-size:1.5rem; margin-bottom:10px">$${resumen[c].total.toFixed(2)}</div>
-                        <button class="btn-cobrar" onclick="marcarPagado('${c}')">MARCAR PAGADO</button>
-                    </div>
-                </div>`;
+        // Función de Turnos
+        function cambiarUsuario() {
+            let nombre = prompt("Ingrese nombre de la empleada de turno:");
+            if (nombre) {
+                localStorage.setItem('vendedor', nombre);
+                alert("Turno cambiado a: " + nombre);
+                closeNav();
             }
         }
-        cargarLibreta();
+
+        async function cargarDeudas() {
+            const { data, error } = await client.from('ventas').select('*').eq('metodo_pago', 'Fiado');
+            if (error) return;
+
+            const deudas = {};
+            data.forEach(v => {
+                if (!deudas[v.cliente]) deudas[v.cliente] = 0;
+                deudas[v.cliente] += v.total;
+            });
+
+            const contenedor = document.getElementById('lista-fiados');
+            contenedor.innerHTML = '';
+            for (const nombre in deudas) {
+                contenedor.innerHTML += `
+                    <div class="card-deuda">
+                        <div>
+                            <h2 style="margin:0">${nombre}</h2>
+                            <p style="margin:5px 0 0; color:#888;">Deuda: <b>$${deudas[nombre]}</b></p>
+                        </div>
+                        <button class="btn-cobrar" onclick="pagarDeuda('${nombre}')">COBRAR TODO</button>
+                    </div>`;
+            }
+        }
+
+        async function pagarDeuda(nombre) {
+            if (!confirm(`¿Confirmas que ${nombre} pagó?`)) return;
+            const { error } = await client.from('ventas').update({ metodo_pago: 'Efectivo (Pago Deuda)' }).eq('cliente', nombre).eq('metodo_pago', 'Fiado');
+            if (!error) { alert("¡Cobrado!"); cargarDeudas(); }
+        }
+
+        cargarDeudas();
     </script>
 </body>
 </html>
