@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Celular Escáner</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; padding: 20px; }
+        #reader { width: 100%; max-width: 600px; margin: auto; border-radius: 15px; overflow: hidden; border: 2px solid #2ecc71 }
+        .status { padding: 15px; font-size: 18px; background: #2ecc71; margin-top: 15px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <h2>📱 Escáner Remoto</h2>
+    <div id="reader"></div>
+    <div class="status" id="msg">Esperando escaneo...</div>
+
+    <script>
+        // PEGA TUS DATOS AQUÍ
+        const SUPABASE_URL = 'https://ovctgqmhumlspklhbjhf.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q';
+        const clienteSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        function onScanSuccess(decodedText) {
+            // ENVIAR EL CÓDIGO A LA PC
+            clienteSupabase.channel('mostrador').send({
+                type: 'broadcast',
+                event: 'escaneo',
+                payload: { codigo: decodedText }
+            });
+            
+            document.getElementById('msg').innerText = "Código enviado: " + decodedText;
+            
+            // Vibración pequeña para confirmar
+            if (navigator.vibrate) navigator.vibrate(100);
+        }
+
+        const html5QrCode = new Html5Qrcode("reader");
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            { fps: 20, qrbox: { width: 300, height: 200 } },
+            onScanSuccess
+        );
+    </script>
+</body>
+</html>

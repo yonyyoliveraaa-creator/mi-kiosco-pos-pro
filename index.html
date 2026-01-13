@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Kiosko POS - Inventario</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { 
+            --bg-color: #121212; 
+            --card-bg: #1e1e1e; 
+            --text-color: #ffffff; 
+            --accent-color: #3498db; 
+        }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
+        
+        /* MENU LATERAL */
+        .sidenav { height: 100%; width: 0; position: fixed; z-index: 1001; top: 0; left: 0; background-color: #111; overflow-x: hidden; transition: 0.3s; padding-top: 60px; box-shadow: 5px 0px 15px rgba(0,0,0,0.5); }
+        .sidenav a { padding: 15px 25px; text-decoration: none; font-size: 1.1rem; color: #818181; display: block; border-bottom: 1px solid #222; }
+        .sidenav a:hover { color: var(--accent-color); background: #222; }
+        .sidenav .closebtn { position: absolute; top: 10px; right: 25px; font-size: 36px; cursor: pointer; }
+        .open-btn { font-size: 24px; cursor: pointer; color: white; position: fixed; top: 20px; left: 20px; z-index: 1000; background: none; border: none; }
+
+        .brand-title { margin-left: 60px; font-size: 1.8rem; font-weight: bold; margin-bottom: 30px; }
+        .form-container { background: var(--card-bg); padding: 25px; border-radius: 10px; max-width: 500px; margin: auto; border-bottom: 4px solid var(--accent-color); }
+        h3 { margin-top: 0; color: #888; }
+        input { width: 100%; padding: 12px; margin: 10px 0; background: #2d2d2d; border: 1px solid #444; color: white; border-radius: 5px; box-sizing: border-box; font-size: 1rem; }
+        input:focus { border-color: var(--accent-color); outline: none; }
+        button.save { width: 100%; padding: 15px; background: var(--accent-color); border: none; color: white; font-weight: bold; border-radius: 5px; cursor: pointer; font-size: 1rem; margin-top: 10px; }
+        button.save:hover { opacity: 0.9; }
+    </style>
+</head>
+<body>
+    <div id="mySidenav" class="sidenav">
+        <div class="closebtn" onclick="closeNav()">&times;</div>
+        <div style="color: #444; padding: 0 25px 10px; font-size: 0.7rem; letter-spacing: 2px; font-weight: bold;">PANEL DE CONTROL</div>
+        <a href="ventas.html">🛒 Ventas</a>
+        <a href="index.html">📦 Inventario</a>
+        <a href="libreta.html">📖 Libreta Fiados</a>
+        <a href="reportes.html">📊 Cierre de Caja</a>
+    </div>
+
+    <button class="open-btn" onclick="openNav()">&#9776;</button>
+
+    <div class="brand-title"><span style="color: var(--accent-color);">K</span>iosko POS - Inventario</div>
+    <h2><span style="color:#3498db">K</span>iosko POS - Inventario</h2>
+    <div class="form-container">
+        <h3>Cargar / Editar Producto</h3>
+        <input type="text" id="codigo" placeholder="Código de Barras">
+        <input type="text" id="nombre" placeholder="Nombre del Producto">
+        <input type="number" id="precio" placeholder="Precio de Venta">
+        <input type="number" id="stock" placeholder="Stock Inicial">
+        <button class="save" onclick="guardarProducto()">GUARDAR PRODUCTO</button>
+    </div>
+
+    <script>
+        // --- PEGA TUS DATOS AQUÍ ---
+        const SUPABASE_URL = 'https://ovctgqmhumlspklhbjhf.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q';
+        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+
+        function openNav() { document.getElementById("mySidenav").style.width = "260px"; }
+        function closeNav() { document.getElementById("mySidenav").style.width = "0"; }
+
+        async function guardarProducto() {
+            const prod = {
+                codigo_barra: document.getElementById('codigo').value,
+                nombre: document.getElementById('nombre').value,
+                precio_venta: parseFloat(document.getElementById('precio').value),
+                stock: parseInt(document.getElementById('stock').value)
+            };
+
+            if(!prod.codigo_barra || !prod.nombre) return alert("Completa los campos básicos");
+
+            const { error } = await client.from('productos').upsert([prod], { onConflict: 'codigo_barra' });
+            
+            if (!error) {
+                alert("✅ Producto guardado correctamente");
+                document.querySelectorAll('input').forEach(i => i.value = '');
+            } else {
+                alert("Error: " + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

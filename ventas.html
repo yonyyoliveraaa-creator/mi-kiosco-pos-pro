@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Kiosko POS - Ventas</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --bg: #121212; --card: #1e1e1e; --text: #fff; --accent: #2ecc71; --fiado: #f1c40f; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* MENU LATERAL */
+        .sidenav { height: 100%; width: 0; position: fixed; z-index: 1001; top: 0; left: 0; background: #111; overflow-x: hidden; transition: 0.3s; padding-top: 60px; box-shadow: 5px 0px 15px rgba(0,0,0,0.5); }
+        .sidenav a { padding: 15px 25px; text-decoration: none; font-size: 1.1rem; color: #818181; display: block; border-bottom: 1px solid #222; }
+        .sidenav a:hover { color: var(--accent); background: #222; }
+        .sidenav .closebtn { position: absolute; top: 10px; right: 25px; font-size: 36px; cursor: pointer; color: white; }
+        
+        .open-btn { font-size: 24px; cursor: pointer; color: white; position: fixed; top: 20px; left: 20px; z-index: 1000; background: none; border: none; }
+
+        .container-left { flex: 2; padding: 20px; margin-left: 60px; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .container-right { flex: 1; padding: 20px; background: var(--card); display: flex; flex-direction: column; justify-content: space-between; }
+
+        #codigo-scanner { width: 100%; padding: 15px; background: #2d2d2d; border: 1px solid #444; border-radius: 8px; color: white; font-size: 1.2rem; margin-top: 15px; }
+        .total-amount { font-size: 4.5rem; font-weight: bold; color: var(--accent); text-align: center; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { text-align: left; color: #888; border-bottom: 1px solid #333; padding: 10px; }
+        td { padding: 12px 10px; border-bottom: 1px solid #222; }
+
+        .btn-pay { padding: 15px; border: none; border-radius: 8px; cursor: pointer; background: #333; color: white; font-weight: bold; margin-bottom: 5px; width: 100%; }
+        .btn-pay.active { background: var(--accent); color: black; }
+        .btn-finalizar { width: 100%; padding: 20px; background: var(--accent); color: black; border: none; border-radius: 8px; font-size: 1.5rem; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="mySidenav" class="sidenav">
+        <div class="closebtn" onclick="closeNav()">&times;</div>
+        <a href="ventas.html">🛒 Ventas</a>
+        <a href="index.html">📦 Inventario</a>
+        <a href="libreta.html">📖 Libreta Fiados</a>
+        <a href="reportes.html">📊 Reportes</a>
+    </div>
+
+    <button class="open-btn" onclick="openNav()">&#9776;</button>
+
+    <div class="container-left">
+        <div style="font-size: 1.8rem; font-weight: bold;"><span style="color: var(--accent);">K</span>iosko POS - Ventas</div>
+        <input type="text" id="codigo-scanner" placeholder="Escanee producto..." autofocus>
+        <div style="overflow-y: auto; flex-grow: 1;">
+            <table>
+                <thead><tr><th>PRODUCTO</th><th>CANT</th><th>PRECIO</th><th>TOTAL</th></tr></thead>
+                <tbody id="tabla-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="container-right">
+        <div>
+            <div class="total-amount" id="monto-total">$0</div>
+            <p id="cliente-info" style="text-align: center; color: var(--fiado); font-weight: bold;"></p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button class="btn-pay" onclick="setPago('Efectivo', this)">💵 Efectivo</button>
+            <button class="btn-pay" onclick="setPago('QR/Transf', this)">📱 QR/Transf</button>
+            <button class="btn-pay" style="color: var(--fiado); border: 1px solid var(--fiado);" onclick="setFiado(this)">📖 Fiado</button>
+            <button class="btn-finalizar" onclick="finalizarVenta()">FINALIZAR VENTA</button>
+        </div>
+    </div>
+
+    <script>
+        // --- PEGA TUS DATOS AQUÍ ---
+        const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
+
+        let carrito = [], metodo = "", cliente = "";
+
+        function openNav() { document.getElementById("mySidenav").style.width = "260px"; }
+        function closeNav() { document.getElementById("mySidenav").style.width = "0"; }
+
+        document.getElementById('codigo-scanner').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') { buscarProd(e.target.value); e.target.value = ''; }
+        });
+
+        async function buscarProd(codigo) {
+            const { data } = await client.from('productos').select('*').eq('codigo_barra', codigo).single();
+            if (data) {
+                const item = carrito.find(p => p.id === data.id);
+                if (item) item.cantidad++; else { data.cantidad = 1; carrito.push(data); }
+                actualizarUI();
+            }
+        }
+
+        function actualizarUI() {
+            const tbody = document.getElementById('tabla-body');
+            tbody.innerHTML = ''; let total = 0;
+            carrito.forEach(p => {
+                let sub = p.precio_venta * p.cantidad; total += sub;
+                tbody.innerHTML += `<tr><td>${p.nombre}</td><td>${p.cantidad}</td><td>$${p.precio_venta}</td><td>$${sub}</td></tr>`;
+            });
+            document.getElementById('monto-total').innerText = '$' + total;
+        }
+
+        function setPago(m, btn) {
+            metodo = m; cliente = "";
+            document.querySelectorAll('.btn-pay').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('cliente-info').innerText = "";
+        }
+
+        function setFiado(btn) {
+            let n = prompt("Nombre del cliente:");
+            if(n) { 
+                cliente = n; metodo = "Fiado"; 
+                btn.classList.add('active'); 
+                document.getElementById('cliente-info').innerText = "Deuda: " + n; 
+            }
+        }
+
+        async function finalizarVenta() {
+            if(!metodo || carrito.length === 0) return alert("Falta elegir pago o productos");
+            const totalV = parseFloat(document.getElementById('monto-total').innerText.replace('$',''));
+            
+            const { error } = await client.from('ventas').insert([{ 
+                total: totalV, metodo_pago: metodo, productos_vendidos: carrito, cliente: cliente 
+            }]);
+
+            if (error) return alert("Error: " + error.message);
+
+            for (const p of carrito) {
+                const { data } = await client.from('productos').select('stock').eq('id', p.id).single();
+                await client.from('productos').update({ stock: data.stock - p.cantidad }).eq('id', p.id);
+            }
+            alert("Venta Exitosa"); location.reload();
+        }
+    </script>
+</body>
+</html>
