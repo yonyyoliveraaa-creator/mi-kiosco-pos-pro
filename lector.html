@@ -2,66 +2,100 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner Kiosco</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Scanner Pro Kiosco</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 20px; }
-        #reader { width: 100%; max-width: 400px; margin: auto; border-radius: 15px; overflow: hidden; }
-        
-        .controls { background: #1e1e1e; padding: 15px; border-radius: 12px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
-        
-        .mode-selector { display: flex; justify-content: center; gap: 10px; }
-        .mode-btn { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; background: #333; color: #888; }
-        .mode-btn.active { background: #2ecc71; color: white; }
-
-        #btn-disparar { 
-            width: 100%; padding: 20px; font-size: 1.5rem; font-weight: bold; 
-            background: #3498db; color: white; border: none; border-radius: 12px; 
-            display: none; cursor: pointer; margin-top: 10px;
-        }
-        #btn-disparar:active { background: #2980b9; transform: scale(0.98); }
-
-        .status { margin-top: 10px; font-size: 0.9rem; color: #aaa; }
+        body { font-family: sans-serif; background: #000; color: white; text-align: center; margin: 0; overflow: hidden; }
+        /* El contenedor de la cámara ahora es pantalla completa o casi */
+        #reader { width: 100vw; height: 60vh; background: #000; }
+        .controls { background: #1e1e1e; padding: 15px; border-radius: 20px 20px 0 0; position: fixed; bottom: 0; width: 100%; z-index: 10; }
+        .mode-selector { display: flex; gap: 10px; margin-bottom: 10px; }
+        .btn { flex: 1; padding: 15px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1rem; }
+        .btn-auto { background: #333; color: white; }
+        .btn-auto.active { background: #2ecc71; }
+        .btn-manual { background: #333; color: white; }
+        .btn-manual.active { background: #3498db; }
+        #btn-disparar { background: #3498db; color: white; display: none; margin-top: 10px; width: 100%; }
+        select { width: 100%; padding: 12px; background: #333; color: white; border: none; border-radius: 10px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
+    <div id="reader"></div>
+
     <div class="controls">
-        <div class="mode-selector">
-            <button id="btn-auto" class="mode-btn active" onclick="setModoLectura('auto')">Auto</button>
-            <button id="btn-manual" class="mode-btn" onclick="setModoLectura('manual')">Manual</button>
-        </div>
-        
-        <select id="select-canal" onchange="modoActual = this.value" style="padding: 10px; border-radius: 8px;">
-            <option value="ventas">🛒 Modo Ventas</option>
-            <option value="carga">📦 Modo Carga (Stock)</option>
+        <select id="select-canal" onchange="modoActual = this.value">
+            <option value="ventas">🛒 MODO VENTAS</option>
+            <option value="carga">📦 MODO CARGA (STOCK)</option>
         </select>
+
+        <div class="mode-selector">
+            <button id="btn-auto" class="btn btn-auto active" onclick="setModoLectura('auto')">AUTO</button>
+            <button id="btn-manual" class="btn btn-manual" onclick="setModoLectura('manual')">MANUAL</button>
+        </div>
+
+        <button id="btn-disparar" class="btn" onclick="disparar()">⚡ ESCANEAR AHORA</button>
+        <p id="status-text" style="font-size: 0.8rem; color: #888;">Iniciando cámara...</p>
     </div>
 
-    <div id="reader"></div>
-    
-    <button id="btn-disparar" onclick="disparar()">DISPARAR (SCAN)</button>
-    
-    <p class="status" id="status-text">Escaneo Automático Activado</p>
-
     <script>
-       const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
+        const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
         let modoActual = 'ventas';
-        let modoLectura = 'auto'; // 'auto' o 'manual'
-        let escaneando = false;
+        let modoLectura = 'auto';
         let ultimoCodigoDetectado = "";
+        let escaneando = false;
 
-        // Sonido Beep
+        // Sonido Beep Pro
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playBeep() {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            osc.frequency.value = 880;
+            gain.gain.value = 0.1;
             osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        const html5QrCode = new Html5Qrcode("reader");
+
+        function onScanSuccess(decodedText) {
+            if (modoLectura === 'auto') {
+                procesarCodigo(decodedText);
+            } else {
+                ultimoCodigoDetectado = decodedText;
+                document.getElementById('status-text').innerText = "Listo: " + decodedText;
+                document.getElementById('status-text').style.color = "#2ecc71";
+            }
+        }
+
+        async function procesarCodigo(codigo) {
+            if (escaneando) return;
+            escaneando = true;
+            playBeep();
+            
+            // Vibración (opcional, muy útil en celulares)
+            if (navigator.vibrate) navigator.vibrate(100);
+
+            await client.channel(modoActual).send({
+                type: 'broadcast',
+                event: 'escaneo',
+                payload: { codigo: codigo.trim() }
+            });
+
+            document.getElementById('status-text').innerText = "✅ ENVIADO: " + codigo;
+            
+            setTimeout(() => {
+                escaneando = false;
+                ultimoCodigoDetectado = "";
+                document.getElementById('status-text').innerText = (modoLectura === 'auto') ? "Buscando código..." : "Apunta a un código";
+                document.getElementById('status-text').style.color = "#888";
+            }, 1500);
+        }
+
+        function disparar() {
+            if (ultimoCodigoDetectado) procesarCodigo(ultimoCodigoDetectado);
         }
 
         function setModoLectura(modo) {
@@ -69,58 +103,29 @@
             document.getElementById('btn-auto').classList.toggle('active', modo === 'auto');
             document.getElementById('btn-manual').classList.toggle('active', modo === 'manual');
             document.getElementById('btn-disparar').style.display = (modo === 'manual') ? 'block' : 'none';
-            document.getElementById('status-text').innerText = (modo === 'auto') ? "Escaneo Automático Activado" : "Presione el botón para leer";
         }
 
-        // Esta función procesa el código
-        function procesarCodigo(codigo) {
-            if (escaneando) return;
-            escaneando = true;
+        // --- INICIO DE CÁMARA EN VIVO ---
+        function startCamera() {
+            const config = { fps: 20, qrbox: { width: 250, height: 250 } };
             
-            playBeep();
-            document.getElementById('reader').style.border = "5px solid #2ecc71";
-
-            client.channel(modoActual).send({
-                type: 'broadcast',
-                event: 'escaneo',
-                payload: { codigo: codigo.trim() }
+            html5QrCode.start(
+                { facingMode: "environment" }, // Forzar cámara trasera
+                config,
+                onScanSuccess
+            ).catch(err => {
+                document.getElementById('status-text').innerText = "Error: " + err;
             });
-
-            setTimeout(() => {
-                escaneando = false;
-                document.getElementById('reader').style.border = "none";
-                ultimoCodigoDetectado = ""; 
-            }, 1500); // 1.5 segundos de espera
         }
 
-        // Al disparar en modo manual
-        function disparar() {
-            if (ultimoCodigoDetectado) {
-                procesarCodigo(ultimoCodigoDetectado);
-            } else {
-                alert("Apunta a un código primero");
-            }
-        }
-
-        function onScanSuccess(decodedText) {
-            if (modoLectura === 'auto') {
-                procesarCodigo(decodedText);
-            } else {
-                // En modo manual, solo guardamos el código que está viendo la cámara
-                ultimoCodigoDetectado = decodedText;
-                document.getElementById('status-text').innerText = "Listo para disparar: " + decodedText;
-                document.getElementById('status-text').style.color = "#2ecc71";
-            }
-        }
-
-        const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 20, qrbox: 250 });
-        html5QrcodeScanner.render(onScanSuccess);
-
-        // Importante para el sonido: requiere una interacción previa
+        // Necesario para el sonido y para iniciar cámara en algunos móviles
         document.body.addEventListener('click', () => {
             if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (!html5QrCode.isScanning) startCamera();
         }, { once: true });
 
+        // Iniciar al cargar
+        setTimeout(startCamera, 1000);
     </script>
 </body>
 </html>

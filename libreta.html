@@ -2,112 +2,149 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Kiosko POS - Libreta de Fiados</title>
+    <title>KIOSCO POS - Libreta</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --bg: #121212; --card: #1e1e1e; --text: #fff; --accent: #f1c40f; }
+        :root { --bg: #121212; --card: #1e1e1e; --text: #fff; --accent: #3498db; --success: #2ecc71; --danger: #e74c3c; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         
+        /* --- ESTILOS DEL MENU LATERAL --- */
         .sidenav { height: 100%; width: 0; position: fixed; z-index: 1001; top: 0; left: 0; background: #111; transition: 0.3s; padding-top: 60px; overflow-x: hidden; }
-        .sidenav a { padding: 15px 25px; text-decoration: none; color: #818181; display: block; border-bottom: 1px solid #222; cursor: pointer; }
-        .sidenav a:hover { color: var(--accent); }
+        .sidenav a { padding: 15px 25px; text-decoration: none; font-size: 1.1rem; color: #818181; display: block; border-bottom: 1px solid #222; cursor: pointer; }
+        .sidenav a:hover { color: var(--success); }
         .open-btn { font-size: 24px; cursor: pointer; position: fixed; top: 20px; left: 20px; background: none; border: none; color: white; z-index: 1000; }
 
-        .brand-header { margin-left: 60px; font-size: 1.8rem; font-weight: bold; margin-bottom: 30px; }
-        .card-deuda { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid var(--accent); }
-        .btn-cobrar { background: var(--accent); color: black; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .container { max-width: 900px; margin: 60px auto 0; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; border-bottom: 4px solid var(--accent); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { text-align: left; color: #888; padding: 12px; border-bottom: 1px solid #333; }
+        td { padding: 12px; border-bottom: 1px solid #222; }
+
+        .btn { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-right: 5px; }
+        .btn-abono { background: var(--accent); color: white; }
+        .btn-liquidar { background: var(--success); color: white; }
+        .total-deuda { color: var(--danger); font-weight: bold; font-size: 1.2rem; }
     </style>
 </head>
 <body>
+
+    <button class="open-btn" onclick="openNav()">&#9776;</button>
+
     <div id="mySidenav" class="sidenav">
         <a href="javascript:void(0)" onclick="closeNav()" style="font-size:30px; position:absolute; top:10px; right:25px; color:white;">&times;</a>
         <a href="ventas.html">🛒 Ventas</a>
-        <a onclick="cambiarUsuario()">👤 Cambiar Turno</a>
-        <a href="index.html">📦 Inventario</a>
-        <a href="libreta.html">📖 Libreta Fiados</a>
-        <a href="reportes.html">📊 Reportes</a>
-        <a href="usuarios.html">👥 Gestión de Personal</a> 
-        <a href="#" onclick="cerrarSesion()" style="color: #ff4757;">🚪 Cerrar Sesión</a>
+        <div id="menu-admin" style="display: none;">
+            <a href="index.html">📦 Inventario</a>
+            <a href="libreta.html" style="color: var(--success);">📖 Libreta Fiados</a>
+            <a href="reportes.html">📊 Reportes</a>
+             <a href="usuario.html">👥 Gestión de Personal</a>
+        </div>
+        <a href="#" onclick="cerrarSesion()" style="color: #ff4757; margin-top: 20px;">🚪 Cerrar Sesión</a>
     </div>
-    <button class="open-btn" onclick="openNav()">&#9776;</button>
 
-    <div class="brand-header"><span style="color:var(--accent)">K</span>iosko POS - Libreta</div>
-
-    <div id="lista-fiados"></div>
+    <div class="container">
+        <div class="card">
+            <h1 style="margin-top:0">📖 Cuenta Corriente</h1>
+            <p style="color:#888">Suma de deudas por cliente y pagos realizados.</p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Estado</th>
+                        <th>Saldo Total</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpo-libreta">
+                    <tr><td colspan="4" style="text-align:center;">Cargando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
     <script>
-        // --- TUS DATOS DE SUPABASE ---
         const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
-        function verificarAcceso() {
-    const rol = localStorage.getItem('rol');
-    
-    // Si no está logueado, mandarlo al login
-    if (!rol) { window.location.href = 'login.html'; return; }
 
-    const menuAdmin = document.getElementById('menu-admin');
-    
-    // Rita (empleado) NO ve el menú admin
-    // Zoe (encargada) y Dueño SÍ ven todo
-    if (rol === 'dueño' || rol === 'encargada') {
-        if (menuAdmin) menuAdmin.style.display = 'block';
-    } else {
-        if (menuAdmin) menuAdmin.style.display = 'none';
-        
-        // Bloqueo de página si intenta entrar por URL
-        const paginasProhibidas = ['index.html', 'reportes.html', 'usuarios.html', 'libreta.html'];
-        if (paginasProhibidas.some(pag => window.location.pathname.includes(pag))) {
-            window.location.href = 'ventas.html';
-        }
-    }
-}
+        // --- 1. FUNCIONES DEL MENU (AQUÍ ESTÁ EL ARREGLO) ---
         function openNav() { document.getElementById("mySidenav").style.width = "250px"; }
         function closeNav() { document.getElementById("mySidenav").style.width = "0"; }
-
-        // Función de Turnos
-        function cambiarUsuario() {
-            let nombre = prompt("Ingrese nombre de la empleada de turno:");
-            if (nombre) {
-                localStorage.setItem('vendedor', nombre);
-                alert("Turno cambiado a: " + nombre);
-                closeNav();
-            }
+        
+        function verificarAcceso() {
+            const rol = localStorage.getItem('rol');
+            if (!rol) { window.location.href = 'login.html'; return; }
+            const menuAdmin = document.getElementById('menu-admin');
+            if (rol === 'dueño' || rol === 'encargada') { if (menuAdmin) menuAdmin.style.display = 'block'; }
         }
 
-        async function cargarDeudas() {
-            const { data, error } = await client.from('ventas').select('*').eq('metodo_pago', 'Fiado');
+        function cerrarSesion() { localStorage.clear(); window.location.href = 'login.html'; }
+
+        // --- 2. LÓGICA DE LA LIBRETA ---
+        async function cargarCuentas() {
+            const { data, error } = await client
+                .from('ventas')
+                .select('*')
+                .eq('metodo_pago', 'libreta');
+
             if (error) return;
 
-            const deudas = {};
+            const cuentas = {};
             data.forEach(v => {
-                if (!deudas[v.cliente]) deudas[v.cliente] = 0;
-                deudas[v.cliente] += v.total;
+                const nombre = v.cliente_nombre || "Sin Nombre";
+                if (!cuentas[nombre]) cuentas[nombre] = { total: 0, pagado: 0 };
+                cuentas[nombre].total += (v.total || 0);
+                cuentas[nombre].pagado += (v.pago_parcial || 0);
             });
 
-            const contenedor = document.getElementById('lista-fiados');
-            contenedor.innerHTML = '';
-            for (const nombre in deudas) {
-                contenedor.innerHTML += `
-                    <div class="card-deuda">
-                        <div>
-                            <h2 style="margin:0">${nombre}</h2>
-                            <p style="margin:5px 0 0; color:#888;">Deuda: <b>$${deudas[nombre]}</b></p>
-                        </div>
-                        <button class="btn-cobrar" onclick="pagarDeuda('${nombre}')">COBRAR TODO</button>
-                    </div>`;
+            const tbody = document.getElementById('cuerpo-libreta');
+            tbody.innerHTML = '';
+
+            for (const nombre in cuentas) {
+                const saldo = cuentas[nombre].total - cuentas[nombre].pagado;
+                if (saldo <= 0.1) continue;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><b>${nombre}</b></td>
+                        <td style="font-size:0.8rem; color:#888;">
+                            Deuda: $${cuentas[nombre].total.toFixed(2)}<br>
+                            Abonos: $${cuentas[nombre].pagado.toFixed(2)}
+                        </td>
+                        <td class="total-deuda">$${saldo.toFixed(2)}</td>
+                        <td>
+                            <button class="btn btn-abono" onclick="hacerAbono('${nombre}', ${saldo})">💸 Abonar</button>
+                            <button class="btn btn-liquidar" onclick="liquidar('${nombre}')">✅ Liquidar</button>
+                        </td>
+                    </tr>
+                `;
+            }
+            if (tbody.innerHTML === '') tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay deudas.</td></tr>';
+        }
+
+        async function hacerAbono(nombre, saldo) {
+            const monto = parseFloat(prompt(`Entrega de ${nombre}:`));
+            if (isNaN(monto) || monto <= 0) return;
+            
+            // Buscamos una venta de este cliente para aplicarle el pago
+            const { data } = await client.from('ventas').select('*').eq('cliente_nombre', nombre).eq('metodo_pago', 'libreta').limit(1).single();
+            if (data) {
+                const nuevoAbono = (data.pago_parcial || 0) + monto;
+                await client.from('ventas').update({ pago_parcial: nuevoAbono }).eq('id', data.id);
+                cargarCuentas();
             }
         }
 
-        async function pagarDeuda(nombre) {
-            if (!confirm(`¿Confirmas que ${nombre} pagó?`)) return;
-            const { error } = await client.from('ventas').update({ metodo_pago: 'Efectivo (Pago Deuda)' }).eq('cliente', nombre).eq('metodo_pago', 'Fiado');
-            if (!error) { alert("¡Cobrado!"); cargarDeudas(); }
+        async function liquidar(nombre) {
+            if (confirm(`¿Saldar toda la deuda de ${nombre}?`)) {
+                await client.from('ventas').update({ metodo_pago: 'efectivo' }).eq('cliente_nombre', nombre).eq('metodo_pago', 'libreta');
+                cargarCuentas();
+            }
         }
 
-        cargarDeudas();
-        function cerrarSesion() {
-    localStorage.clear(); // Borra el usuario y el rol de la memoria
-    window.location.href = 'login.html'; // Manda al login
-}
+        // Iniciar
+        verificarAcceso();
+        cargarCuentas();
     </script>
 </body>
 </html>

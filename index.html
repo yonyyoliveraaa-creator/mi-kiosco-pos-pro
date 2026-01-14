@@ -2,206 +2,232 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Kiosko POS - Gestión de Stock</title>
+    <title>KIOSCO POS - Inventario</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --bg: #121212; --card: #1e1e1e; --text: #fff; --accent: #3498db; }
+        :root { --bg: #121212; --card: #1e1e1e; --text: #fff; --accent: #2ecc71; --orange: #e67e22; --blue: #3498db; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         
         .sidenav { height: 100%; width: 0; position: fixed; z-index: 1001; top: 0; left: 0; background: #111; transition: 0.3s; padding-top: 60px; overflow-x: hidden; }
-        .sidenav a { padding: 15px 25px; text-decoration: none; color: #818181; display: block; border-bottom: 1px solid #222; cursor: pointer; }
+        .sidenav a { padding: 15px 25px; text-decoration: none; font-size: 1.1rem; color: #818181; display: block; border-bottom: 1px solid #222; }
         .open-btn { font-size: 24px; cursor: pointer; position: fixed; top: 20px; left: 20px; background: none; border: none; color: white; z-index: 1000; }
 
-        .container { max-width: 900px; margin: 60px auto; }
-        .form-card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 30px; border-bottom: 4px solid var(--accent); }
+        .container { max-width: 1100px; margin: 60px auto 0; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; border-bottom: 4px solid var(--accent); margin-bottom: 20px; }
         
-        input { width: 100%; padding: 10px; margin: 8px 0; background: #2d2d2d; border: 1px solid #444; color: white; border-radius: 6px; }
-        button.btn-save { width: 100%; padding: 12px; background: var(--accent); border: none; color: white; font-weight: bold; border-radius: 6px; cursor: pointer; }
+        /* FORMULARIO DE CARGA */
+        .form-carga { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 15px; }
+        input { background: #2d2d2d; border: 1px solid #444; color: white; padding: 12px; border-radius: 8px; font-size: 1rem; }
+        input:focus { border-color: var(--blue); outline: none; }
 
-        /* TABLA DE STOCK */
-        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #333; }
-        th { background: #252525; color: var(--accent); font-size: 0.8rem; letter-spacing: 1px; }
-        .alerta-stock { color: #ff4757; font-weight: bold; } /* Rojo si hay poco */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { text-align: left; color: #888; padding: 12px; border-bottom: 1px solid #333; }
+        td { padding: 12px; border-bottom: 1px solid #222; }
+
+        .btn { padding: 12px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-blue { background: var(--blue); color: white; }
+        .btn-orange { background: var(--orange); color: white; }
+        
+        .editable-input { width: 80px; text-align: center; background: #333; border: 1px solid transparent; color: white; }
+        .low-stock { color: #ff4757; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div id="mySidenav" class="sidenav">
-        <a href="javascript:void(0)" onclick="closeNav()" style="font-size:30px; position:absolute; top:10px; right:25px; color:white;">&times;</a>
-        <a href="ventas.html">🛒 Ventas</a>
-        <a href="index.html">📦 Inventario</a>
+
+   <button class="open-btn" onclick="openNav()">&#9776;</button>
+
+<div id="mySidenav" class="sidenav">
+    <a href="javascript:void(0)" onclick="closeNav()" style="font-size:30px; position:absolute; top:10px; right:25px; color:white;">&times;</a>
+    
+    <a href="ventas.html">🛒 Ventas</a>
+    
+    <div id="menu-admin">
+        <a href="index.html" style="color: var(--accent);">📦 Inventario</a>
         <a href="libreta.html">📖 Libreta Fiados</a>
         <a href="reportes.html">📊 Reportes</a>
-        <a href="usuario.html">👥 Gestión de Personal</a> 
-        <a href="#" onclick="cerrarSesion()" style="color: #ff4757;">🚪 Cerrar Sesión</a>
+        <a href="personal.html">👥 Gestión de Personal</a>
     </div>
-    <button class="open-btn" onclick="openNav()">&#9776;</button>
+
+    <a href="#" onclick="cerrarSesion()" style="color: #ff4757; margin-top: 20px;">🚪 Cerrar Sesión</a>
+</div>
+
+
 
     <div class="container">
-        <div class="form-card">
-            <h2 style="margin-top:0"><span style="color:var(--accent)">K</span>iosko - Carga de Productos</h2>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <input type="text" id="codigo" placeholder="Código de Barras">
-                <input type="text" id="nombre" placeholder="Nombre del Producto">
-                <input type="number" id="precio" placeholder="Precio de Venta">
-                <input type="number" id="stock" placeholder="Cantidad que entra">
+        <div class="card" style="border-bottom-color: var(--blue);">
+            <h3 style="margin-top:0">➕ Cargar Nuevo Producto / Stock</h3>
+            <div class="form-carga">
+                <input type="text" id="nuevo-codigo" placeholder="Código de Barras (Escanea)">
+                <input type="text" id="nuevo-nombre" placeholder="Nombre del Producto">
+                <input type="number" id="nuevo-stock" placeholder="Cantidad">
+                <input type="number" id="nuevo-precio" placeholder="Precio Venta">
+                <button class="btn btn-blue" onclick="guardarProducto()">💾 Guardar Producto</button>
             </div>
-            <button class="btn-save" onclick="guardar()">ACTUALIZAR / AGREGAR</button>
         </div>
 
-        <h3>📦 Stock Actual</h3>
-        <table>
-            <thead>
-                <tr><th>CÓDIGO</th><th>PRODUCTO</th><th>PRECIO</th><th>STOCK</th><th>ACCIÓN</th></tr>
-            </thead>
-            <tbody id="tabla-stock">
-                </tbody>
-        </table>
+        <div class="card">
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end;">
+                <div style="flex: 2;">
+                    <label>🔍 Buscar en Inventario</label><br>
+                    <input type="text" id="buscador" placeholder="Buscar por nombre o código..." onkeyup="filtrarProductos()" style="width: 100%;">
+                </div>
+                <div style="border-left: 1px solid #444; padding-left: 20px;">
+                    <label>📈 Aumento General (%)</label><br>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="number" id="porcentaje-aumento" placeholder="%" style="width: 80px;">
+                        <button class="btn btn-orange" onclick="aplicarAumentoMasivo()">Aumentar Todo</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <table id="tabla-productos">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Producto</th>
+                        <th>Stock Actual</th>
+                        <th>Precio Venta</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpo-inventario"></tbody>
+            </table>
+        </div>
     </div>
 
     <script>
-        
-    const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
+        const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
+        let todosLosProductos = [];
 
-    // 1. ESCUDO DE SEGURIDAD
-    verificarAcceso();
-    function verificarAcceso() {
-        const rol = localStorage.getItem('rol');
-        if (!rol) { window.location.href = 'login.html'; return; }
-        const menuAdmin = document.getElementById('menu-admin');
-        if (rol === 'dueño' || rol === 'encargada') {
-            if (menuAdmin) menuAdmin.style.display = 'block';
-        } else {
-            window.location.href = 'ventas.html';
-        }
-    }
-
-    // 2. OREJA PARA EL LECTOR (CARGA)
-    client.channel('carga').on('broadcast', { event: 'escaneo' }, async (p) => {
-        const cod = p.payload.codigo;
-        console.log("Recibido del celular:", cod); // Para ver si llega en la consola (F12)
-        
-        const inputCodigo = document.getElementById('codigo');
-        if (inputCodigo) {
-            inputCodigo.value = cod;
+        // --- 1. LECTOR EN INVENTARIO ---
+        // Si escaneas un producto que YA EXISTE, el sistema completa los datos para sumar stock
+        client.channel('carga').on('broadcast', { event: 'escaneo' }, async (p) => {
+            const cod = p.payload.codigo.trim();
+            document.getElementById('nuevo-codigo').value = cod;
             
-            // Buscar en Maestra
-            const { data: maestra } = await client.from('maestra_ar').select('nombre').eq('codigo_barra', cod).single();
-            if (maestra) {
-                document.getElementById('nombre').value = maestra.nombre;
-                document.getElementById('precio').focus();
+            // Buscar si ya existe
+            const { data } = await client.from('productos').select('*').eq('codigo_barra', cod).single();
+            if (data) {
+                document.getElementById('nuevo-nombre').value = data.nombre;
+                document.getElementById('nuevo-precio').value = data.precio_venta;
+                document.getElementById('nuevo-stock').focus();
+            } else {
+                document.getElementById('nuevo-nombre').focus();
             }
-        }
-    }).subscribe();
+        }).subscribe();
 
-    // 3. CARGAR LA TABLA DE STOCK
-    async function cargarInventario() {
-        const { data, error } = await client.from('productos').select('*').order('nombre', { ascending: true });
-        
-        if (error) {
-            console.error("Error cargando stock:", error);
-            return;
-        }
+        // --- 2. GUARDAR / ACTUALIZAR ---
+        async function guardarProducto() {
+    const cod = document.getElementById('nuevo-codigo').value.trim();
+    const nom = document.getElementById('nuevo-nombre').value.trim();
+    const sto = parseFloat(document.getElementById('nuevo-stock').value) || 0;
+    const pre = parseFloat(document.getElementById('nuevo-precio').value) || 0;
 
-        const tbody = document.getElementById('tabla-stock');
-        if (!tbody) return;
-        
-        tbody.innerHTML = '';
-        data.forEach(p => {
-            tbody.innerHTML += `<tr>
-                <td>${p.codigo_barra}</td>
-                <td>${p.nombre}</td>
-                <td>$${p.precio_venta}</td>
-                <td>${p.stock}</td>
-                <td><button onclick="eliminar('${p.id}')" style="color:red; background:none; border:none; cursor:pointer;">🗑️</button></td>
-            </tr>`;
-        });
+    if (!nom || pre <= 0) {
+        alert("Por favor, completa Nombre y Precio.");
+        return;
     }
 
-    // 4. GUARDAR PRODUCTO
-    async function guardar() {
-        const cod = document.getElementById('codigo').value;
-        const nom = document.getElementById('nombre').value;
-        const pre = parseFloat(document.getElementById('precio').value);
-        const sto = parseInt(document.getElementById('stock').value);
+    // Intentamos buscar si ya existe para actualizar o insertar
+    const { data: existente, error: errorBusqueda } = await client
+        .from('productos')
+        .select('*')
+        .eq('codigo_barra', cod)
+        .maybeSingle();
 
-        if(!cod || !nom || isNaN(pre) || isNaN(sto)) return alert("Completa todos los campos correctamente");
-
-        // Buscar si ya existe para sumar stock
-        const { data: existente } = await client.from('productos').select('stock').eq('codigo_barra', cod).single();
-        let nuevoStock = sto;
-        if (existente) nuevoStock = existente.stock + sto;
-
-        const { error } = await client.from('productos').upsert([{
-            codigo_barra: cod, nombre: nom, precio_venta: pre, stock: nuevoStock
-        }], { onConflict: 'codigo_barra' });
-
-        if (error) alert("Error al guardar: " + error.message);
-        else {
-            alert("✅ Guardado con éxito");
-            document.querySelectorAll('input').forEach(i => i.value = '');
-            cargarInventario(); // Recarga la lista
-        }
+    if (existente) {
+        // ACTUALIZAR: Sumamos el stock nuevo al anterior
+        const nuevoStockTotal = existente.stock_actual + sto;
+        const { error: errorUpd } = await client
+            .from('productos')
+            .update({ 
+                nombre: nom, 
+                stock_actual: nuevoStockTotal, 
+                precio_venta: pre 
+            })
+            .eq('id', existente.id);
+        
+        if (errorUpd) alert("Error al actualizar: " + errorUpd.message);
+        else alert("Stock actualizado para: " + nom);
+    } else {
+        // INSERTAR NUEVO
+        const { error: errorIns } = await client
+            .from('productos')
+            .insert([{ 
+                codigo_barra: cod, 
+                nombre: nom, 
+                stock_actual: sto, 
+                precio_venta: pre 
+            }]);
+        
+        if (errorIns) alert("Error al insertar: " + errorIns.message);
+        else alert("Producto nuevo guardado: " + nom);
     }
 
-    async function eliminar(id) {
-        if(confirm("¿Seguro?")) {
-            await client.from('productos').delete().eq('id', id);
+    // Limpiar y refrescar la tabla para ver los cambios
+    document.getElementById('nuevo-codigo').value = '';
+    document.getElementById('nuevo-nombre').value = '';
+    document.getElementById('nuevo-stock').value = '';
+    document.getElementById('nuevo-precio').value = '';
+    
+    // Llamamos a la función que carga la tabla de nuevo
+    await cargarInventario(); 
+}
+
+        // --- 3. FUNCIONES DE TABLA (Igual que antes) ---
+        async function cargarInventario() {
+            const { data, error } = await client.from('productos').select('*').order('nombre', { ascending: true });
+            if (!error) { todosLosProductos = data; mostrarProductos(data); }
+        }
+
+        function mostrarProductos(lista) {
+            const tbody = document.getElementById('cuerpo-inventario');
+            tbody.innerHTML = '';
+            lista.forEach(p => {
+                const stockClase = p.stock_actual <= 3 ? 'low-stock' : '';
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-size: 0.8rem; color: #888;">${p.codigo_barra || '-'}</td>
+                        <td><b>${p.nombre}</b></td>
+                        <td><input type="number" class="editable-input ${stockClase}" value="${p.stock_actual}" onchange="actualizarIndividual('${p.id}', 'stock_actual', this.value)"></td>
+                        <td><input type="number" class="editable-input" style="color:var(--accent)" value="${p.precio_venta}" onchange="actualizarIndividual('${p.id}', 'precio_venta', this.value)"></td>
+                        <td><button onclick="eliminarProducto('${p.id}')">🗑️</button></td>
+                    </tr>`;
+            });
+        }
+
+        async function actualizarIndividual(id, campo, valor) {
+            const updateData = {}; updateData[campo] = parseFloat(valor);
+            await client.from('productos').update(updateData).eq('id', id);
+        }
+
+        function filtrarProductos() {
+            const term = document.getElementById('buscador').value.toLowerCase();
+            const filtrados = todosLosProductos.filter(p => p.nombre.toLowerCase().includes(term) || (p.codigo_barra && p.codigo_barra.includes(term)));
+            mostrarProductos(filtrados);
+        }
+
+        async function aplicarAumentoMasivo() {
+            const porc = parseFloat(document.getElementById('porcentaje-aumento').value);
+            if (!porc || !confirm(`¿Aumentar todo un ${porc}%?`)) return;
+            const promesas = todosLosProductos.map(p => {
+                const nuevoP = p.precio_venta * (1 + (porc / 100));
+                return client.from('productos').update({ precio_venta: nuevoP }).eq('id', p.id);
+            });
+            await Promise.all(promesas);
             cargarInventario();
         }
-    }
 
-    // 5. FUNCIONES DE INTERFAZ
-    function openNav() { document.getElementById("mySidenav").style.width = "250px"; }
-    function closeNav() { document.getElementById("mySidenav").style.width = "0"; }
-    function cerrarSesion() { localStorage.clear(); window.location.href = 'login.html'; }
-
-    // Ejecutar al abrir la página
-    cargarInventario();
-
-
-        async function guardar() {
-            const cod = document.getElementById('codigo').value;
-            const nom = document.getElementById('nombre').value;
-            const pre = parseFloat(document.getElementById('precio').value);
-            const sto = parseInt(document.getElementById('stock').value);
-
-            if(!cod || !nom) return alert("Completa los datos");
-
-            // Primero vemos si ya existe para sumar el stock
-            const { data: existente } = await client.from('productos').select('*').eq('codigo_barra', cod).single();
-            
-            let nuevoStock = sto;
-            if(existente) {
-                nuevoStock = existente.stock + sto; // Sumamos lo nuevo a lo que ya había
-            }
-
-            const { error } = await client.from('productos').upsert([{
-                codigo_barra: cod,
-                nombre: nom,
-                precio_venta: pre,
-                stock: nuevoStock
-            }], { onConflict: 'codigo_barra' });
-
-            if(!error) {
-                alert("Inventario actualizado");
-                document.querySelectorAll('input').forEach(i => i.value = '');
-                cargarInventario(); // Refrescar la lista
-            }
+        async function eliminarProducto(id) {
+            if (confirm("¿Eliminar?")) { await client.from('productos').delete().eq('id', id); cargarInventario(); }
         }
 
-        async function eliminar(id) {
-            if(confirm("¿Seguro quieres borrar este producto?")) {
-                await client.from('productos').delete().eq('id', id);
-                cargarInventario();
-            }
-        }
+        function openNav() { document.getElementById("mySidenav").style.width = "250px"; }
+        function closeNav() { document.getElementById("mySidenav").style.width = "0"; }
 
         cargarInventario();
-        function cerrarSesion() {
-    localStorage.clear(); // Borra el usuario y el rol de la memoria
-    window.location.href = 'login.html'; // Manda al login
-}
     </script>
 </body>
 </html>

@@ -2,119 +2,161 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Kiosko POS - Reportes por Turno</title>
+    <title>KIOSCO POS - Reportes</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --bg: #121212; --card: #1e1e1e; --text: #fff; --accent: #2ecc71; }
+        :root { --bg: #121212; --card: #1e1e1e; --text: #fff; --accent: #2ecc71; --blue: #3498db; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        
+        /* MENU LATERAL */
         .sidenav { height: 100%; width: 0; position: fixed; z-index: 1001; top: 0; left: 0; background: #111; transition: 0.3s; padding-top: 60px; overflow-x: hidden; }
-        .sidenav a { padding: 15px 25px; text-decoration: none; color: #818181; display: block; border-bottom: 1px solid #222; cursor: pointer; }
+        .sidenav a { padding: 15px 25px; text-decoration: none; font-size: 1.1rem; color: #818181; display: block; border-bottom: 1px solid #222; cursor: pointer; }
+        .sidenav a:hover { color: var(--accent); }
         .open-btn { font-size: 24px; cursor: pointer; position: fixed; top: 20px; left: 20px; background: none; border: none; color: white; z-index: 1000; }
-        .card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border-bottom: 4px solid var(--accent); }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+
+        .container { max-width: 1100px; margin: 60px auto 0; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; border-bottom: 4px solid var(--accent); margin-bottom: 20px; }
+        
+        /* RESUMEN */
+        .grid-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .mini-card { background: #252525; padding: 20px; border-radius: 10px; text-align: center; border-top: 3px solid var(--accent); }
+        .mini-card h3 { margin: 0; font-size: 0.8rem; color: #888; text-transform: uppercase; }
+        .mini-card p { margin: 10px 0 0; font-size: 1.6rem; font-weight: bold; }
+
+        .filtros { background: #252525; padding: 20px; border-radius: 10px; display: flex; gap: 15px; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; }
+        input[type="date"] { background: #333; border: 1px solid #444; color: white; padding: 10px; border-radius: 8px; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; color: #888; border-bottom: 1px solid #333; padding: 12px; }
+        td { padding: 12px; border-bottom: 1px solid #222; }
+        
+        .tag-vendedor { background: var(--blue); color: white; padding: 3px 8px; border-radius: 5px; font-size: 0.8rem; }
     </style>
 </head>
 <body>
+
+    <button class="open-btn" onclick="openNav()">&#9776;</button>
+
     <div id="mySidenav" class="sidenav">
         <a href="javascript:void(0)" onclick="closeNav()" style="font-size:30px; position:absolute; top:10px; right:25px; color:white;">&times;</a>
         <a href="ventas.html">🛒 Ventas</a>
-        <a href="index.html">📦 Inventario</a>
-        <a href="libreta.html">📖 Libreta Fiados</a>
-        <a href="reportes.html">📊 Reportes</a>
-        <a href="usuarios.html">👥 Gestión de Personal</a> 
-        <a href="#" onclick="cerrarSesion()" style="color: #ff4757;">🚪 Cerrar Sesión</a>
+        <div id="menu-admin" style="display: block;">
+            <a href="index.html">📦 Inventario</a>
+            <a href="libreta.html">📖 Libreta Fiados</a>
+            <a href="reportes.html" style="color: var(--accent);">📊 Reportes</a>
+            <a href="personal.html">👥 Gestión de Personal</a>
+        </div>
+        <a href="#" onclick="cerrarSesion()" style="color: #ff4757; margin-top: 20px;">🚪 Cerrar Sesión</a>
     </div>
-    <button class="open-btn" onclick="openNav()">&#9776;</button>
 
-    <h2 style="margin-left:60px;">📊 Reporte de Ventas (Hoy)</h2>
+    <div class="container">
+        <h1>📊 Reportes de Ventas</h1>
 
-    <div class="grid" id="resumen-total">
+        <div class="filtros">
+            <div>
+                <label style="display:block; font-size:0.8rem; margin-bottom:5px;">Desde:</label>
+                <input type="date" id="fecha-inicio">
+            </div>
+            <div>
+                <label style="display:block; font-size:0.8rem; margin-bottom:5px;">Hasta:</label>
+                <input type="date" id="fecha-fin">
+            </div>
+            <button onclick="cargarReportes()" style="background:var(--accent); color:white; border:none; padding:12px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">Generar Reporte</button>
+            <button onclick="setHoy()" style="background:#444; color:white; border:none; padding:12px 20px; border-radius:8px; cursor:pointer;">Ver Hoy</button>
         </div>
 
-    <div class="card">
-        <h3>💰 Ventas por Empleada</h3>
-        <table id="tabla-empleadas">
-            <thead><tr><th>EMPLEADA</th><th>EFECTIVO</th><th>TARJETAS</th><th>TOTAL</th></tr></thead>
-            <tbody></tbody>
-        </table>
+        <div class="grid-resumen">
+            <div class="mini-card"><h3>Total Bruto</h3><p id="total-bruto">$ 0.00</p></div>
+            <div class="mini-card" style="border-color: #2ecc71;"><h3>Efectivo</h3><p id="total-efectivo">$ 0.00</p></div>
+            <div class="mini-card" style="border-color: #3498db;"><h3>Digital/Tarj.</h3><p id="total-digital">$ 0.00</p></div>
+            <div class="mini-card" style="border-color: #e74c3c;"><h3>Fiados</h3><p id="total-libreta">$ 0.00</p></div>
+        </div>
+
+        <div class="card">
+            <h3>Detalle de Movimientos</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha y Hora</th>
+                        <th>Vendedor</th>
+                        <th>Método</th>
+                        <th>Cliente</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-reportes">
+                    </tbody>
+            </table>
+        </div>
     </div>
 
     <script>
-        const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
-        function verificarAcceso() {eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
-    const rol = localStorage.getItem('rol');
-    
-    // Si no está logueado, mandarlo al login
-    if (!rol) { window.location.href = 'login.html'; return; }
+        const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
 
-    const menuAdmin = document.getElementById('menu-admin');
-    
-    // Rita (empleado) NO ve el menú admin
-    // Zoe (encargada) y Dueño SÍ ven todo
-    if (rol === 'dueño' || rol === 'encargada') {
-        if (menuAdmin) menuAdmin.style.display = 'block';
-    } else {
-        if (menuAdmin) menuAdmin.style.display = 'none';
-        
-        // Bloqueo de página si intenta entrar por URL
-        const paginasProhibidas = ['index.html', 'reportes.html', 'usuarios.html', 'libreta.html'];
-        if (paginasProhibidas.some(pag => window.location.pathname.includes(pag))) {
-            window.location.href = 'ventas.html';
-        }
-    }
-}
         function openNav() { document.getElementById("mySidenav").style.width = "250px"; }
         function closeNav() { document.getElementById("mySidenav").style.width = "0"; }
+        function cerrarSesion() { localStorage.clear(); window.location.href = 'login.html'; }
 
-        async function cargarReportes() {
+        // Filtro de hoy por defecto
+        function setHoy() {
             const hoy = new Date().toISOString().split('T')[0];
-            const { data, error } = await client.from('ventas').select('*').gte('created_at', hoy);
-            
-            if (error) return;
-
-            const ventasPorVendedor = {};
-            let totalEfe = 0, totalTar = 0;
-
-            data.forEach(v => {
-                const vend = v.vendedor || "Sin asignar";
-                if (!ventasPorVendedor[vend]) ventasPorVendedor[vend] = { efe: 0, tar: 0 };
-
-                if (v.metodo_pago === 'Efectivo') {
-                    ventasPorVendedor[vend].efe += v.total;
-                    totalEfe += v.total;
-                } else if (v.metodo_pago.includes('Tarjeta')) {
-                    ventasPorVendedor[vend].tar += v.total;
-                    totalTar += v.total;
-                }
-            });
-
-            // Dibujar Totales
-            document.getElementById('resumen-total').innerHTML = `
-                <div class="card"><h4>Efectivo Total</h4><p style="font-size:2rem; color:var(--accent)">$${totalEfe}</p></div>
-                <div class="card"><h4>Tarjetas Total</h4><p style="font-size:2rem; color:#3498db">$${totalTar}</p></div>
-            `;
-
-            // Dibujar Tabla de Empleadas
-            const tbody = document.querySelector('#tabla-empleadas tbody');
-            tbody.innerHTML = '';
-            for (const vend in ventasPorVendedor) {
-                const v = ventasPorVendedor[vend];
-                tbody.innerHTML += `<tr>
-                    <td><b>${vend}</b></td>
-                    <td>$${v.efe}</td>
-                    <td>$${v.tar}</td>
-                    <td>$${v.efe + v.tar}</td>
-                </tr>`;
-            }
+            document.getElementById('fecha-inicio').value = hoy;
+            document.getElementById('fecha-fin').value = hoy;
+            cargarReportes();
         }
 
-        cargarReportes();
-        function cerrarSesion() {
-    localStorage.clear(); // Borra el usuario y el rol de la memoria
-    window.location.href = 'login.html'; // Manda al login
-}
+        async function cargarReportes() {
+            const inicio = document.getElementById('fecha-inicio').value;
+            const fin = document.getElementById('fecha-fin').value;
+
+            if (!inicio || !fin) return;
+
+            // Ajustar fecha fin para incluir todo el día
+            const fFin = new Date(fin);
+            fFin.setDate(fFin.getDate() + 1);
+
+            const { data, error } = await client
+                .from('ventas')
+                .select('*')
+                .gte('fecha', inicio)
+                .lt('fecha', fFin.toISOString())
+                .order('fecha', { ascending: false });
+
+            if (error) { console.error(error); return; }
+            dibujarReporte(data);
+        }
+
+        function dibujarReporte(ventas) {
+            let t = 0, e = 0, d = 0, l = 0;
+            const tbody = document.getElementById('tabla-reportes');
+            tbody.innerHTML = '';
+
+            ventas.forEach(v => {
+                t += v.total;
+                if (v.metodo_pago === 'efectivo') e += v.total;
+                else if (v.metodo_pago === 'libreta') l += v.total;
+                else d += v.total;
+
+                const fecha = new Date(v.fecha).toLocaleString();
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${fecha}</td>
+                        <td><span class="tag-vendedor">${v.vendedor || 'Admin'}</span></td>
+                        <td>${v.metodo_pago.toUpperCase()}</td>
+                        <td>${v.cliente_nombre || '-'}</td>
+                        <td style="font-weight:bold">$ ${v.total.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('total-bruto').innerText = `$ ${t.toFixed(2)}`;
+            document.getElementById('total-efectivo').innerText = `$ ${e.toFixed(2)}`;
+            document.getElementById('total-digital').innerText = `$ ${d.toFixed(2)}`;
+            document.getElementById('total-libreta').innerText = `$ ${l.toFixed(2)}`;
+        }
+
+        // Iniciar
+        setHoy();
     </script>
 </body>
 </html>
