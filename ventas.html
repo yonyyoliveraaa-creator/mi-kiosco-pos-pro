@@ -42,8 +42,11 @@
         <a href="index.html">📦 Inventario</a>
         <a href="libreta.html">📖 Libreta Fiados</a>
         <a href="reportes.html">📊 Reportes</a>
+        <a href="usuario.html">👥 Gestión de Personal</a> 
+    
+        <a href="#" onclick="cerrarSesion()" style="color: #ff4757;">🚪 Cerrar Sesión</a>
     </div>
-
+    
     <button class="open-btn" onclick="openNav()">&#9776;</button>
 
     <div class="container-left">
@@ -77,8 +80,38 @@
 
     <script>
         const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
-        let carrito = [], metodo = "", cliente = "", vendedor = localStorage.getItem('vendedor') || "Sin asignar";
+        // --- ESCUDO DE SEGURIDAD ---
+verificarAcceso();
 
+function verificarAcceso() {
+    const rol = localStorage.getItem('rol');
+    
+    // 1. Si no hay nadie, al login
+    if (!rol) {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    const menuAdmin = document.getElementById('menu-admin');
+    
+    // 2. Control del Menú
+    if (rol === 'dueño' || rol === 'encargada') {
+        if (menuAdmin) menuAdmin.style.display = 'block';
+    } else {
+        if (menuAdmin) menuAdmin.style.display = 'none';
+
+        // 3. BLOQUEO FÍSICO: Si es 'empleado' y la página no es ventas, lo saca
+        const paginaActual = window.location.pathname.split("/").pop();
+        const paginasProhibidas = ['index.html', 'reportes.html', 'usuarios.html', 'libreta.html'];
+        
+        if (paginasProhibidas.includes(paginaActual) || paginaActual === "") {
+            alert("Acceso restringido para empleados.");
+            window.location.href = 'ventas.html';
+        }
+    }
+}
+        let carrito = [], metodo = "", cliente = "", vendedor = localStorage.getItem('vendedor') || "Sin asignar";
+        
         document.getElementById('nombre-vendedor').innerText = vendedor;
 
         function openNav() { document.getElementById("mySidenav").style.width = "250px"; }
@@ -172,6 +205,10 @@ async function buscar(codigo) {
         localStorage.setItem('vendedor', nombre);
         location.reload(); // Recarga para aplicar el cambio
     }
+}
+function cerrarSesion() {
+    localStorage.clear(); // Borra el usuario y el rol de la memoria
+    window.location.href = 'login.html'; // Manda al login
 }
     </script>
 </body>

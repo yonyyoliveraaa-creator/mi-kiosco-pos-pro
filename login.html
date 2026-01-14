@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Kiosko POS - Login</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-card { background: #1e1e1e; padding: 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 350px; text-align: center; border-bottom: 5px solid #2ecc71; }
+        input { width: 100%; padding: 12px; margin: 10px 0; background: #2d2d2d; border: 1px solid #444; color: white; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: #2ecc71; border: none; color: black; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 1rem; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1><span style="color:#2ecc71">K</span>iosko POS</h1>
+        <p>Inicie sesión para continuar</p>
+        <input type="text" id="user" placeholder="Usuario">
+        <input type="password" id="pass" placeholder="Contraseña">
+        <button onclick="ingresar()">INGRESAR</button>
+    </div>
+
+    <script>
+        const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
+
+        async function ingresar() {
+            const u = document.getElementById('user').value;
+            const p = document.getElementById('pass').value;
+
+            const { data, error } = await client.from('perfiles')
+                .select('*').eq('usuario', u).eq('contrasena', p).single();
+
+            if (data) {
+                localStorage.setItem('vendedor', data.nombre);
+                localStorage.setItem('rol', data.rol);
+                window.location.href = 'ventas.html'; // Al entrar, todos van a Ventas primero
+            } else {
+                alert("Usuario o contraseña incorrectos");
+            }
+        }
+    </script>
+</body>
+</html>

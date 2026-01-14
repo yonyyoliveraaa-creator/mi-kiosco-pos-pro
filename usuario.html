@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Kiosko POS - Gestión de Usuario</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --bg: #121212; --card: #1e1e1e; --text: #fff; --accent: #9b59b6; } /* Color Púrpura para Usuarios */
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        
+        /* MENU LATERAL */
+        .sidenav { height: 100%; width: 0; position: fixed; z-index: 1001; top: 0; left: 0; background: #111; transition: 0.3s; padding-top: 60px; overflow-x: hidden; }
+        .sidenav a { padding: 15px 25px; text-decoration: none; font-size: 1.1rem; color: #818181; display: block; border-bottom: 1px solid #222; cursor: pointer; }
+        .sidenav a:hover { color: var(--accent); }
+        .open-btn { font-size: 24px; cursor: pointer; position: fixed; top: 20px; left: 20px; background: none; border: none; color: white; z-index: 1000; }
+
+        .container { max-width: 1000px; margin: 60px auto 0; display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        .card { background: var(--card); padding: 25px; border-radius: 12px; border-bottom: 4px solid var(--accent); }
+        
+        input, select { width: 100%; padding: 12px; margin: 10px 0; background: #2d2d2d; border: 1px solid #444; color: white; border-radius: 8px; box-sizing: border-box; }
+        .btn-add { background: var(--accent); color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; color: #888; border-bottom: 1px solid #333; padding: 12px; }
+        td { padding: 12px; border-bottom: 1px solid #222; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
+        .badge-admin { background: #e74c3c; color: white; }
+        .badge-encargada { background: #f1c40f; color: black; }
+        .badge-empleado { background: #2ecc71; color: black; }
+    </style>
+</head>
+<body>
+
+    <div id="mySidenav" class="sidenav">
+        <a href="javascript:void(0)" onclick="closeNav()" style="font-size:30px; position:absolute; top:10px; right:25px; color:white;">&times;</a>
+        <a href="ventas.html">🛒 Ventas</a>
+        <div id="menu-admin" style="display: none;">
+            <a href="index.html">📦 Inventario</a>
+            <a href="libreta.html">📖 Libreta Fiados</a>
+            <a href="reportes.html">📊 Reportes</a>
+            <a href="usuario.html">👥 Gestión de Personal</a>
+        </div>
+        <a href="#" onclick="cerrarSesion()" style="color: #ff4757; margin-top: 20px;">🚪 Cerrar Sesión</a>
+    </div>
+
+    <button class="open-btn" onclick="openNav()">&#9776;</button>
+
+    <h2 style="margin-left:60px;"><span style="color:var(--accent)">👥</span> Gestión de Usuarios</h2>
+
+    <div class="container">
+        <div class="card">
+            <h3>Nuevo Usuario</h3>
+            <input type="text" id="new-nom" placeholder="Nombre (Ej: Rita)">
+            <input type="text" id="new-user" placeholder="Usuario (para login)">
+            <input type="text" id="new-pass" placeholder="Contraseña">
+            <select id="new-rol">
+                <option value="empleado">Empleado (Solo Ventas)</option>
+                <option value="encargada">Encargada (Todo)</option>
+                <option value="dueño">Dueño (Todo)</option>
+            </select>
+            <button class="btn-add" onclick="crearUsuario()">REGISTRAR</button>
+        </div>
+
+        <div class="card">
+            <h3>Personal Registrado</h3>
+            <table>
+                <thead>
+                    <tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Acción</th></tr>
+                </thead>
+                <tbody id="tabla-usuarios">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
+
+        // --- ESCUDO DE SEGURIDAD ---
+verificarAcceso();
+
+function verificarAcceso() {
+    const rol = localStorage.getItem('rol');
+    
+    // 1. Si no hay nadie, al login
+    if (!rol) {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    const menuAdmin = document.getElementById('menu-admin');
+    
+    // 2. Control del Menú
+    if (rol === 'dueño' || rol === 'encargada') {
+        if (menuAdmin) menuAdmin.style.display = 'block';
+    } else {
+        if (menuAdmin) menuAdmin.style.display = 'none';
+
+        // 3. BLOQUEO FÍSICO: Si es 'empleado' y la página no es ventas, lo saca
+        const paginaActual = window.location.pathname.split("/").pop();
+        const paginasProhibidas = ['index.html', 'reportes.html', 'usuarios.html', 'libreta.html'];
+        
+        if (paginasProhibidas.includes(paginaActual) || paginaActual === "") {
+            alert("Acceso restringido para empleados.");
+            window.location.href = 'ventas.html';
+        }
+    }
+}
+
+        async function cargarUsuarios() {
+            const { data, error } = await client.from('perfiles').select('*');
+            if (error) return;
+
+            const lista = document.getElementById('tabla-usuarios');
+            lista.innerHTML = '';
+
+            data.forEach(u => {
+                const badgeClass = `badge-${u.rol}`;
+                lista.innerHTML += `
+                    <tr>
+                        <td><b>${u.nombre}</b></td>
+                        <td>${u.usuario}</td>
+                        <td><span class="badge ${badgeClass}">${u.rol}</span></td>
+                        <td>
+                            <button onclick="eliminar('${u.id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:1.2rem;">🗑️</button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        async function crearUsuario() {
+            const nom = document.getElementById('new-nom').value;
+            const usr = document.getElementById('new-user').value;
+            const pas = document.getElementById('new-pass').value;
+            const rol = document.getElementById('new-rol').value;
+
+            if(!nom || !usr || !pas) return alert("Completa todos los campos");
+
+            const { error } = await client.from('perfiles').insert([{ 
+                nombre: nom, usuario: usr, contrasena: pas, rol: rol 
+            }]);
+
+            if (error) {
+                alert("Error: " + error.message);
+            } else {
+                alert("✅ Usuario creado con éxito");
+                location.reload();
+            }
+        }
+
+        async function eliminar(id) {
+            if(!confirm("¿Eliminar este usuario definitivamente?")) return;
+            const { error } = await client.from('perfiles').delete().eq('id', id);
+            if(!error) cargarUsuarios();
+        }
+
+        function cerrarSesion() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        function openNav() { document.getElementById("mySidenav").style.width = "250px"; }
+        function closeNav() { document.getElementById("mySidenav").style.width = "0"; }
+
+        // Cargar al iniciar
+        cargarUsuarios();
+    </script>
+</body>
+</html>

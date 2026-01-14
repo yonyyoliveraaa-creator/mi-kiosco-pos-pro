@@ -26,6 +26,8 @@
         <a href="index.html">📦 Inventario</a>
         <a href="libreta.html">📖 Libreta Fiados</a>
         <a href="reportes.html">📊 Reportes</a>
+        <a href="usuarios.html">👥 Gestión de Personal</a> 
+        <a href="#" onclick="cerrarSesion()" style="color: #ff4757;">🚪 Cerrar Sesión</a>
     </div>
     <button class="open-btn" onclick="openNav()">&#9776;</button>
 
@@ -36,7 +38,28 @@
     <script>
         // --- TUS DATOS DE SUPABASE ---
         const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
+        function verificarAcceso() {
+    const rol = localStorage.getItem('rol');
+    
+    // Si no está logueado, mandarlo al login
+    if (!rol) { window.location.href = 'login.html'; return; }
 
+    const menuAdmin = document.getElementById('menu-admin');
+    
+    // Rita (empleado) NO ve el menú admin
+    // Zoe (encargada) y Dueño SÍ ven todo
+    if (rol === 'dueño' || rol === 'encargada') {
+        if (menuAdmin) menuAdmin.style.display = 'block';
+    } else {
+        if (menuAdmin) menuAdmin.style.display = 'none';
+        
+        // Bloqueo de página si intenta entrar por URL
+        const paginasProhibidas = ['index.html', 'reportes.html', 'usuarios.html', 'libreta.html'];
+        if (paginasProhibidas.some(pag => window.location.pathname.includes(pag))) {
+            window.location.href = 'ventas.html';
+        }
+    }
+}
         function openNav() { document.getElementById("mySidenav").style.width = "250px"; }
         function closeNav() { document.getElementById("mySidenav").style.width = "0"; }
 
@@ -81,6 +104,10 @@
         }
 
         cargarDeudas();
+        function cerrarSesion() {
+    localStorage.clear(); // Borra el usuario y el rol de la memoria
+    window.location.href = 'login.html'; // Manda al login
+}
     </script>
 </body>
 </html>
