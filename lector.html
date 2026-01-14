@@ -43,12 +43,12 @@
 
         html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
             // ENVIAR AL CANAL SELECCIONADO
-            client.channel('ventas').send({
+            client.channel('canalDestino').send({
                 type: 'broadcast',
                 event: 'escaneo',
-                payload: { codigo: decodedText }
+                payload: { codigo: codigo }
             });
-
+             console.log("Envio a canal: " + canalDestino);
             document.getElementById('resultado').innerText = "Enviado (" + modoActual + "): " + decodedText;
             navigator.vibrate(100); 
         });
