@@ -60,72 +60,105 @@
     </div>
 
     <script>
-        const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
-        function verificarAcceso() {
-    const rol = localStorage.getItem('rol');
-    
-    // Si no está logueado, mandarlo al login
-    if (!rol) { window.location.href = 'login.html'; return; }
-
-    const menuAdmin = document.getElementById('menu-admin');
-    
-    // Rita (empleado) NO ve el menú admin
-    // Zoe (encargada) y Dueño SÍ ven todo
-    if (rol === 'dueño' || rol === 'encargada') {
-        if (menuAdmin) menuAdmin.style.display = 'block';
-    } else {
-        if (menuAdmin) menuAdmin.style.display = 'none';
         
-        // Bloqueo de página si intenta entrar por URL
-        const paginasProhibidas = ['index.html', 'reportes.html', 'usuarios.html', 'libreta.html'];
-        if (paginasProhibidas.some(pag => window.location.pathname.includes(pag))) {
+    const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
+
+    // 1. ESCUDO DE SEGURIDAD
+    verificarAcceso();
+    function verificarAcceso() {
+        const rol = localStorage.getItem('rol');
+        if (!rol) { window.location.href = 'login.html'; return; }
+        const menuAdmin = document.getElementById('menu-admin');
+        if (rol === 'dueño' || rol === 'encargada') {
+            if (menuAdmin) menuAdmin.style.display = 'block';
+        } else {
             window.location.href = 'ventas.html';
         }
     }
-}
-    document.getElementById('nombre-vendedor').innerText = vendedor;
-        // --- OREJA PARA CARGA DE STOCK ---
-client.channel('carga').on('broadcast', { event: 'escaneo' }, async (p) => {
-    const codigoEscaneado = p.payload.codigo;
-    
-    // 1. Ponemos el código en el cuadro de texto
-    document.getElementById('codigo').value = codigoEscaneado;
 
-    // 2. Buscamos PRIMERO si ya lo tenés en tu inventario (productos)
-    const { data: local } = await client
-        .from('productos')
-        .select('*')
-        .eq('codigo_barra', codigoEscaneado)
-        .single();
+    // 2. OREJA PARA EL LECTOR (CARGA)
+    client.channel('carga').on('broadcast', { event: 'escaneo' }, async (p) => {
+        const cod = p.payload.codigo;
+        console.log("Recibido del celular:", cod); // Para ver si llega en la consola (F12)
+        
+        const inputCodigo = document.getElementById('codigo');
+        if (inputCodigo) {
+            inputCodigo.value = cod;
+            
+            // Buscar en Maestra
+            const { data: maestra } = await client.from('maestra_ar').select('nombre').eq('codigo_barra', cod).single();
+            if (maestra) {
+                document.getElementById('nombre').value = maestra.nombre;
+                document.getElementById('precio').focus();
+            }
+        }
+    }).subscribe();
 
-    if (local) {
-        // Si ya lo tenés, rellena todo para que solo edites si hace falta
-        document.getElementById('nombre').value = local.nombre;
-        document.getElementById('precio').value = local.precio_venta;
-        // El stock lo dejamos vacío para que sumes lo que entra nuevo
-        document.getElementById('stock').focus(); 
-        console.log("Producto encontrado en tu inventario local.");
-    } else {
-        // 3. SI NO ESTÁ en tu inventario, busca en la TABLA MAESTRA
-        const { data: maestra } = await client
-            .from('maestra_ar')
-            .select('nombre')
-            .eq('codigo_barra', codigoEscaneado)
-            .single();
+    // 3. CARGAR LA TABLA DE STOCK
+    async function cargarInventario() {
+        const { data, error } = await client.from('productos').select('*').order('nombre', { ascending: true });
+        
+        if (error) {
+            console.error("Error cargando stock:", error);
+            return;
+        }
 
-        if (maestra) {
-            // Si está en la maestra, te "regala" el nombre del producto
-            document.getElementById('nombre').value = maestra.nombre;
-            document.getElementById('precio').focus(); // Salta al precio
-            console.log("Producto nuevo detectado en la Base Maestra.");
-        } else {
-            // 4. Si no está en ningún lado, te toca escribir el nombre
-            document.getElementById('nombre').value = '';
-            document.getElementById('nombre').focus();
-            console.log("Código desconocido. Se debe cargar manualmente.");
+        const tbody = document.getElementById('tabla-stock');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '';
+        data.forEach(p => {
+            tbody.innerHTML += `<tr>
+                <td>${p.codigo_barra}</td>
+                <td>${p.nombre}</td>
+                <td>$${p.precio_venta}</td>
+                <td>${p.stock}</td>
+                <td><button onclick="eliminar('${p.id}')" style="color:red; background:none; border:none; cursor:pointer;">🗑️</button></td>
+            </tr>`;
+        });
+    }
+
+    // 4. GUARDAR PRODUCTO
+    async function guardar() {
+        const cod = document.getElementById('codigo').value;
+        const nom = document.getElementById('nombre').value;
+        const pre = parseFloat(document.getElementById('precio').value);
+        const sto = parseInt(document.getElementById('stock').value);
+
+        if(!cod || !nom || isNaN(pre) || isNaN(sto)) return alert("Completa todos los campos correctamente");
+
+        // Buscar si ya existe para sumar stock
+        const { data: existente } = await client.from('productos').select('stock').eq('codigo_barra', cod).single();
+        let nuevoStock = sto;
+        if (existente) nuevoStock = existente.stock + sto;
+
+        const { error } = await client.from('productos').upsert([{
+            codigo_barra: cod, nombre: nom, precio_venta: pre, stock: nuevoStock
+        }], { onConflict: 'codigo_barra' });
+
+        if (error) alert("Error al guardar: " + error.message);
+        else {
+            alert("✅ Guardado con éxito");
+            document.querySelectorAll('input').forEach(i => i.value = '');
+            cargarInventario(); // Recarga la lista
         }
     }
-}).subscribe();
+
+    async function eliminar(id) {
+        if(confirm("¿Seguro?")) {
+            await client.from('productos').delete().eq('id', id);
+            cargarInventario();
+        }
+    }
+
+    // 5. FUNCIONES DE INTERFAZ
+    function openNav() { document.getElementById("mySidenav").style.width = "250px"; }
+    function closeNav() { document.getElementById("mySidenav").style.width = "0"; }
+    function cerrarSesion() { localStorage.clear(); window.location.href = 'login.html'; }
+
+    // Ejecutar al abrir la página
+    cargarInventario();
+
 
         async function guardar() {
             const cod = document.getElementById('codigo').value;

@@ -43,7 +43,7 @@
 
         html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
             // ENVIAR AL CANAL SELECCIONADO
-            client.channel(modoActual).send({
+            client.channel('ventas').send({
                 type: 'broadcast',
                 event: 'escaneo',
                 payload: { codigo: decodedText }
