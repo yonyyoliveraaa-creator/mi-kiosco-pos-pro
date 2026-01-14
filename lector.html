@@ -3,55 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kiosko POS - Lector Dual</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Scanner Kiosco</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 10px; }
+        body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 20px; }
         #reader { width: 100%; max-width: 400px; margin: auto; border-radius: 15px; overflow: hidden; }
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .btn-mode { padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; opacity: 0.5; transition: 0.3s; color: white; }
-        .btn-mode.active { opacity: 1; transform: scale(1.05); }
-        #btn-venta { background: #2ecc71; border: 2px solid #2ecc71; }
-        #btn-carga { background: #3498db; border: 2px solid #3498db; }
-        .status { margin-top: 15px; padding: 10px; border-radius: 8px; background: #1e1e1e; font-size: 0.9rem; }
+        
+        .controls { background: #1e1e1e; padding: 15px; border-radius: 12px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
+        
+        .mode-selector { display: flex; justify-content: center; gap: 10px; }
+        .mode-btn { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; background: #333; color: #888; }
+        .mode-btn.active { background: #2ecc71; color: white; }
+
+        #btn-disparar { 
+            width: 100%; padding: 20px; font-size: 1.5rem; font-weight: bold; 
+            background: #3498db; color: white; border: none; border-radius: 12px; 
+            display: none; cursor: pointer; margin-top: 10px;
+        }
+        #btn-disparar:active { background: #2980b9; transform: scale(0.98); }
+
+        .status { margin-top: 10px; font-size: 0.9rem; color: #aaa; }
     </style>
 </head>
 <body>
+
     <div class="controls">
-        <button id="btn-venta" class="btn-mode active" onclick="setModo('mostrador', this)">MODO VENTA</button>
-        <button id="btn-carga" class="btn-mode" onclick="setModo('carga', this)">MODO CARGA</button>
+        <div class="mode-selector">
+            <button id="btn-auto" class="mode-btn active" onclick="setModoLectura('auto')">Auto</button>
+            <button id="btn-manual" class="mode-btn" onclick="setModoLectura('manual')">Manual</button>
+        </div>
+        
+        <select id="select-canal" onchange="modoActual = this.value" style="padding: 10px; border-radius: 8px;">
+            <option value="ventas">🛒 Modo Ventas</option>
+            <option value="carga">📦 Modo Carga (Stock)</option>
+        </select>
     </div>
 
     <div id="reader"></div>
-    <div id="resultado" class="status">Listo para escanear...</div>
+    
+    <button id="btn-disparar" onclick="disparar()">DISPARAR (SCAN)</button>
+    
+    <p class="status" id="status-text">Escaneo Automático Activado</p>
 
     <script>
-        // --- TUS CREDENCIALES ---
-        const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
-        let modoActual = 'mostrador'; // Por defecto modo venta
+       const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
+        let modoActual = 'ventas';
+        let modoLectura = 'auto'; // 'auto' o 'manual'
+        let escaneando = false;
+        let ultimoCodigoDetectado = "";
 
-        function setModo(modo, btn) {
-            modoActual = modo;
-            document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            document.getElementById('resultado').innerText = "Cambiado a: " + modo.toUpperCase();
+        // Sonido Beep
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playBeep() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
         }
 
-        const html5QrCode = new Html5Qrcode("reader");
-        const config = { fps: 15, qrbox: { width: 250, height: 150 } };
+        function setModoLectura(modo) {
+            modoLectura = modo;
+            document.getElementById('btn-auto').classList.toggle('active', modo === 'auto');
+            document.getElementById('btn-manual').classList.toggle('active', modo === 'manual');
+            document.getElementById('btn-disparar').style.display = (modo === 'manual') ? 'block' : 'none';
+            document.getElementById('status-text').innerText = (modo === 'auto') ? "Escaneo Automático Activado" : "Presione el botón para leer";
+        }
 
-        html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
-            // ENVIAR AL CANAL SELECCIONADO
-            client.channel('canalDestino').send({
+        // Esta función procesa el código
+        function procesarCodigo(codigo) {
+            if (escaneando) return;
+            escaneando = true;
+            
+            playBeep();
+            document.getElementById('reader').style.border = "5px solid #2ecc71";
+
+            client.channel(modoActual).send({
                 type: 'broadcast',
                 event: 'escaneo',
-                payload: { codigo: codigo }
+                payload: { codigo: codigo.trim() }
             });
-             console.log("Envio a canal: " + canalDestino);
-            document.getElementById('resultado').innerText = "Enviado (" + modoActual + "): " + decodedText;
-            navigator.vibrate(100); 
-        });
+
+            setTimeout(() => {
+                escaneando = false;
+                document.getElementById('reader').style.border = "none";
+                ultimoCodigoDetectado = ""; 
+            }, 1500); // 1.5 segundos de espera
+        }
+
+        // Al disparar en modo manual
+        function disparar() {
+            if (ultimoCodigoDetectado) {
+                procesarCodigo(ultimoCodigoDetectado);
+            } else {
+                alert("Apunta a un código primero");
+            }
+        }
+
+        function onScanSuccess(decodedText) {
+            if (modoLectura === 'auto') {
+                procesarCodigo(decodedText);
+            } else {
+                // En modo manual, solo guardamos el código que está viendo la cámara
+                ultimoCodigoDetectado = decodedText;
+                document.getElementById('status-text').innerText = "Listo para disparar: " + decodedText;
+                document.getElementById('status-text').style.color = "#2ecc71";
+            }
+        }
+
+        const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 20, qrbox: 250 });
+        html5QrcodeScanner.render(onScanSuccess);
+
+        // Importante para el sonido: requiere una interacción previa
+        document.body.addEventListener('click', () => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }, { once: true });
+
     </script>
 </body>
 </html>
