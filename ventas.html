@@ -50,7 +50,7 @@
             <a href="index.html">📦 Inventario</a>
             <a href="libreta.html">📖 Libreta Fiados</a>
             <a href="reportes.html">📊 Reportes</a>
-            <a href="usuario.html">👥 Gestión de Personal</a>
+            <a href="usuarios.html">👥 Gestión de Personal</a>
         </div>
         <a href="#" onclick="cerrarSesion()" style="color: #ff4757; margin-top: 20px;">🚪 Cerrar Sesión</a>
     </div>
@@ -134,10 +134,10 @@
 
         // --- 2. LECTOR DE BARRAS (Broadcast corregido) ---
         client.channel('ventas').on('broadcast', { event: 'escaneo' }, async (p) => {
-            const cod = p.payload.codigo.trim(); cosole.log("Código recibido:",cod); //para que veas en F12 si llega
-            const { data, error } = await client.from('productos').select('*').eq('codigo_barra', cod).single();
+            const cod = p.payload.codigo.trim();
+            const { data } = await client.from('productos').select('*').eq('codigo_barra', cod).single();
             if (data) { agregarAlCarrito(data); }
-            else { console.log("Código no encontrado: " + cod); } 
+            else { console.log("Código no encontrado: " + cod); }
         }).subscribe();
 
         // --- 3. BUSCADOR Y CARRITO ---
