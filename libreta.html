@@ -65,6 +65,9 @@
     </div>
 
     <script>
+        if (!localStorage.getItem('sesion_activa')) {
+        window.location.href = 'login.html'; // Lo manda al login
+    }
         const client = supabase.createClient('https://ovctgqmhumlspklhbjhf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Y3RncW1odW1sc3BrbGhiamhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMTcyOTEsImV4cCI6MjA4Mzc5MzI5MX0.6PrQwbYrjDZqo_Zku3uM-z7Bt3-Dn59cMbl5l9KAo_Q');
 
         // --- 1. FUNCIONES DEL MENU (AQUÍ ESTÁ EL ARREGLO) ---
